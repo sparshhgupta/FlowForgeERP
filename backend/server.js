@@ -7,6 +7,9 @@ const projectRoutes = require('./routes/projects');
 const attendanceRoutes = require('./routes/attendance');
 const productRoutes = require('./routes/products');
 const workerRoutes = require('./routes/workers');
+const machineRoutes = require('./routes/machines');
+const paymentRoutes = require('./routes/payments');
+const clientRoutes = require('./routes/client');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -28,6 +31,9 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/workers', workerRoutes);
+app.use('/api/machines', machineRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/client', clientRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -38,13 +44,16 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Welcome to Parasnath Build ERP API',
-    version: '2.0.0',
+    version: '3.0.0',
     endpoints: {
       auth: '/api/auth',
       projects: '/api/projects',
       attendance: '/api/attendance',
       products: '/api/products',
-      workers: '/api/workers'
+      workers: '/api/workers',
+      machines: '/api/machines',
+      payments: '/api/payments',
+      client: '/api/client'
     }
   });
 });

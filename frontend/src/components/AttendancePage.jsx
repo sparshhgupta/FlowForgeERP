@@ -45,7 +45,7 @@ const AttendancePage = () => {
       const attendanceMap = {};
       detailsRes.data.forEach(worker => {
         attendanceMap[worker.id] = {
-          status: worker.status || 'present',
+          status: worker.status || 'absent',
           check_in_time: worker.check_in_time || '',
           notes: worker.attendance_notes || '',
           attendance_id: worker.attendance_id

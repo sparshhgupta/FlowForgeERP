@@ -10,6 +10,9 @@ import ProjectDetails from './components/ProjectDetails';
 import WorkersList from './components/WorkersList';
 import WorkerDetails from './components/WorkerDetails';
 import AttendancePage from './components/AttendancePage';
+import PaymentsPage from './components/PaymentsPage';
+import ClientLogin from './client/ClientLogin';
+import ClientPortal from './client/ClientPortal';
 
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -44,6 +47,7 @@ function App() {
     <Router>
       <AuthProvider>
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route
             path="/login"
@@ -61,6 +65,12 @@ function App() {
               </PublicRoute>
             }
           />
+
+          {/* Client Portal Routes (No Auth Required) */}
+          <Route path="/client/login" element={<ClientLogin />} />
+          <Route path="/client/project/:id" element={<ClientPortal />} />
+
+          {/* Protected Routes */}
           <Route
             path="/dashboard"
             element={
@@ -109,6 +119,16 @@ function App() {
               </PrivateRoute>
             }
           />
+          <Route
+            path="/payments"
+            element={
+              <PrivateRoute>
+                <PaymentsPage />
+              </PrivateRoute>
+            }
+          />
+
+          {/* Catch All */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </AuthProvider>

@@ -259,7 +259,7 @@ router.delete('/:id', authenticateToken, authorizeRole('owner', 'supervisor'), a
 
 // Assign worker to project (after attendance is marked)
 router.post('/assign', authenticateToken, authorizeRole('owner', 'supervisor'), async (req, res) => {
-  const { worker_id, project_id, machine_assigned, notes, date } = req.body;
+  const { worker_id, project_id, machine_id, machine_assigned, notes, date } = req.body;
   const assignmentDate = date || new Date().toISOString().split('T')[0];
 
   try {
@@ -275,12 +275,12 @@ router.post('/assign', authenticateToken, authorizeRole('owner', 'supervisor'), 
     }
 
     const result = await pool.query(
-      `INSERT INTO worker_assignments (worker_id, project_id, machine_assigned, notes, date, assigned_by) 
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO worker_assignments (worker_id, project_id, machine_id, machine_assigned, notes, date, assigned_by) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (worker_id, project_id, date)
-       DO UPDATE SET machine_assigned = $3, notes = $4
+       DO UPDATE SET machine_id = $3, machine_assigned = $4, notes = $5
        RETURNING *`,
-      [worker_id, project_id, machine_assigned, notes, assignmentDate, req.user.id]
+      [worker_id, project_id, machine_id, machine_assigned, notes, assignmentDate, req.user.id]
     );
 
     res.status(201).json(result.rows[0]);
@@ -338,10 +338,13 @@ router.get('/assignments/project/:projectId', authenticateToken, async (req, res
         w.phone as worker_phone,
         a.status as attendance_status,
         a.check_in_time,
-        a.check_out_time
+        a.check_out_time,
+        m.name as machine_name,
+        m.type as machine_type
       FROM worker_assignments wa
       JOIN workers w ON wa.worker_id = w.id
       LEFT JOIN attendance a ON w.id = a.worker_id AND a.date = wa.date
+      LEFT JOIN machines m ON wa.machine_id = m.id
       WHERE wa.project_id = $1 AND wa.date = $2
       ORDER BY w.name
     `, [projectId, targetDate]);

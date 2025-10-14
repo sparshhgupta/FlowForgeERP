@@ -17,7 +17,9 @@ const Navbar = () => {
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/projects', label: 'Projects', icon: FolderKanban },
     { path: '/workers', label: 'Workers', icon: Users },
-    { path: '/attendance', label: 'Attendance', icon: CalendarCheck }
+    { path: '/attendance', label: 'Attendance', icon: CalendarCheck },
+    // { path: '/payments', label: 'Payments', icon: DollarSign }
+    { path: '/payments', label: 'Payments', icon: FolderKanban }
   ];
 
   const isActive = (path) => {
