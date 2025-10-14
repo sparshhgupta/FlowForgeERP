@@ -6,7 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import Navbar from './Navbar';
 import { 
   ArrowLeft, Package, Users, Calendar, TrendingUp, Edit, UserPlus, X, UserMinus, 
-  Plus, Trash2, Key, Copy, DollarSign, Clock, CheckCircle 
+  Plus, Trash2, Key, Copy, DollarSign, Clock, CheckCircle, Eye
 } from 'lucide-react';
 
 const ProjectDetails = () => {
@@ -31,6 +31,11 @@ const ProjectDetails = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  // Add new state for display modal
+  const [showDisplayModal, setShowDisplayModal] = useState(false);
+  const [selectedProduction, setSelectedProduction] = useState(null);
+  const [displayForm, setDisplayForm] = useState({ displayQuantity: '', displayTarget: '' });
   
   // Form data
   const [editingProduction, setEditingProduction] = useState(null);
@@ -333,6 +338,26 @@ const handleUpdateProduction = async (productionId) => {
     }
   };
 
+  // Add this handler function
+const handleUpdateDisplayValues = async () => {
+  try {
+    await axios.put(
+      `${API_URL}/products/production/${selectedProduction.id}/display`,
+      {
+        display_quantity_produced: displayForm.displayQuantity || null,
+        display_target_quantity: displayForm.displayTarget || null
+      },
+      { headers: getAuthHeader() }
+    );
+    setShowDisplayModal(false);
+    setSelectedProduction(null);
+    setDisplayForm({ displayQuantity: '', displayTarget: '' });
+    fetchProjectDetails();
+  } catch (error) {
+    alert('Failed to update display values');
+  }
+};
+
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     alert('Copied to clipboard!');
@@ -605,10 +630,9 @@ const handleUpdateProduction = async (productionId) => {
                         </div>
 
                         <div className="space-y-3">
-                        {editingProduction === item.id && canEdit ? (
+                        {/* {editingProduction === item.id && canEdit ? (
                             <div className="space-y-2 bg-slate-800 p-3 rounded-lg">
                             <div className="grid grid-cols-2 gap-3">
-                                {/* Actual Values Column */}
                                 <div className="space-y-2">
                                 <p className="text-xs font-semibold text-blue-300 uppercase">Actual Values</p>
                                 <div className="flex items-center gap-2">
@@ -642,7 +666,6 @@ const handleUpdateProduction = async (productionId) => {
                                 </div>
                                 </div>
 
-                                {/* Display Override Column */}
                                 <div className="space-y-2 border-l border-slate-700 pl-3">
                                 <p className="text-xs font-semibold text-green-300 uppercase">Show to Client</p>
                                 <div className="flex items-center gap-2">
@@ -722,8 +745,6 @@ const handleUpdateProduction = async (productionId) => {
                                 </button>
                                 )}
                             </div>
-
-                            {/* Progress bars */}
                             <div className="space-y-2">
                                 <div>
                                 <div className="flex justify-between items-center mb-1">
@@ -754,108 +775,176 @@ const handleUpdateProduction = async (productionId) => {
                                 )}
                             </div>
                             </div>
-                        )}
+                        )} */}
+                        {editingProduction === item.id && canEdit ? (
+                            <div className="space-y-2 bg-slate-800 p-3 rounded-lg">
+                                <div className="grid grid-cols-2 gap-3">
+                                {/* Actual Values Column */}
+                                <div className="space-y-2">
+                                    <p className="text-xs font-semibold text-blue-300 uppercase">Actual Values</p>
+                                    <div className="flex items-center gap-2">
+                                    <label className="text-slate-400 text-xs w-20">Quantity:</label>
+                                    <input
+                                        type="number"
+                                        value={editValue.quantity}
+                                        onChange={(e) => setEditValue({...editValue, quantity: e.target.value})}
+                                        placeholder={item.quantity_produced}
+                                        className="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
+                                    />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                    <label className="text-slate-400 text-xs w-20">Target:</label>
+                                    <input
+                                        type="number"
+                                        value={item.target_quantity}
+                                        disabled
+                                        className="flex-1 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-slate-500 text-sm"
+                                    />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                    <label className="text-slate-400 text-xs w-20">Workers:</label>
+                                    <input
+                                        type="number"
+                                        value={editValue.workers}
+                                        onChange={(e) => setEditValue({...editValue, workers: e.target.value})}
+                                        placeholder={item.assigned_workers || 0}
+                                        className="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
+                                    />
+                                    </div>
+                                </div>
+
+                                {/* Display Values Info */}
+                                <div className="space-y-2 border-l border-slate-700 pl-3">
+                                    <p className="text-xs font-semibold text-green-300 uppercase">Client View</p>
+                                    <div className="text-xs text-slate-400 space-y-1">
+                                    <div>Quantity: {item.display_quantity || item.quantity_produced}</div>
+                                    <div>Target: {item.display_target || item.target_quantity}</div>
+                                    <div>Progress: {item.display_completion_percentage}%</div>
+                                    </div>
+                                    {user?.role === 'owner' && (
+                                    <button
+                                        onClick={() => {
+                                        setSelectedProduction(item);
+                                        setDisplayForm({
+                                            displayQuantity: item.display_quantity_produced || '',
+                                            displayTarget: item.display_target_quantity || ''
+                                        });
+                                        setShowDisplayModal(true);
+                                        }}
+                                        className="w-full py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
+                                    >
+                                        Configure Display
+                                    </button>
+                                    )}
+                                </div>
+                                </div>
+
+                                <div className="flex gap-2 mt-3">
+                                <button
+                                    onClick={() => handleUpdateProduction(item.id)}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm flex-1"
+                                >
+                                    Save Changes
+                                </button>
+                                <button
+                                    onClick={() => {
+                                    setEditingProduction(null);
+                                    setEditValue({ quantity: '', workers: '' });
+                                    }}
+                                    className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded text-sm"
+                                >
+                                    Cancel
+                                </button>
+                                </div>
+                            </div>
+                            ) : (
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-1">
+                                    <span className="text-slate-300 text-sm">
+                                        Actual: {item.quantity_produced} / {item.target_quantity} {item.product_unit}
+                                    </span>
+                                    {(item.display_quantity_produced || item.display_target_quantity) && (
+                                        <span className="text-green-300 text-sm">
+                                        Client sees: {item.display_quantity} / {item.display_target} {item.product_unit}
+                                        </span>
+                                    )}
+                                    </div>
+                                    <div className="text-slate-400 text-xs">
+                                    Workers assigned: {item.assigned_workers || 0}
+                                    </div>
+                                </div>
+                                {canEdit && (
+                                    <div className="flex gap-1">
+                                    <button
+                                        onClick={() => {
+                                        setEditingProduction(item.id);
+                                        setEditValue({ 
+                                            quantity: item.quantity_produced, 
+                                            workers: item.assigned_workers || 0
+                                        });
+                                        }}
+                                        className="p-1 hover:bg-slate-700 rounded transition-colors"
+                                        title="Edit production"
+                                    >
+                                        <Edit className="text-slate-400" size={16} />
+                                    </button>
+                                    {user?.role === 'owner' && (
+                                        <button
+                                        onClick={() => {
+                                            setSelectedProduction(item);
+                                            setDisplayForm({
+                                            displayQuantity: item.display_quantity_produced || '',
+                                            displayTarget: item.display_target_quantity || ''
+                                            });
+                                            setShowDisplayModal(true);
+                                        }}
+                                        className="p-1 hover:bg-green-600 hover:bg-opacity-20 rounded transition-colors"
+                                        title="Configure client display"
+                                        >
+                                        <Eye className="text-green-400" size={16} />
+                                        </button>
+                                    )}
+                                    </div>
+                                )}
+                                </div>
+
+                                {/* Progress bars */}
+                                <div className="space-y-2">
+                                <div>
+                                    <div className="flex justify-between items-center mb-1">
+                                    <span className="text-xs text-slate-400">Actual Progress</span>
+                                    <span className="text-xs text-blue-300">{item.completion_percentage}%</span>
+                                    </div>
+                                    <div className="w-full bg-slate-700 rounded-full h-2">
+                                    <div
+                                        className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                                        style={{ width: `${Math.min(item.completion_percentage, 100)}%` }}
+                                    />
+                                    </div>
+                                </div>
+
+                                {(item.display_quantity_produced || item.display_target_quantity) && (
+                                    <div>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-xs text-slate-400">Client View</span>
+                                        <span className="text-xs text-green-300">{item.display_completion_percentage}%</span>
+                                    </div>
+                                    <div className="w-full bg-slate-700 rounded-full h-2">
+                                        <div
+                                        className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                                        style={{ width: `${Math.min(item.display_completion_percentage, 100)}%` }}
+                                        />
+                                    </div>
+                                    </div>
+                                )}
+                                </div>
+                            </div>
+                            )}
                         </div>
                     </div>
                     ))}
-                  {/* {production.map((item) => (
-                    <div
-                      key={item.id}
-                      className="bg-slate-900 bg-opacity-50 rounded-lg p-4 border border-slate-700"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-white font-medium">{item.product_name}</h4>
-                            <div className="flex items-center gap-2">
-                              <span className="px-3 py-1 bg-blue-500 bg-opacity-20 text-blue-300 rounded-full text-sm font-medium">
-                                {item.completion_percentage}%
-                              </span>
-                              {canEdit && user?.role === 'owner' && (
-                                <button
-                                  onClick={() => handleRemoveProduct(item.id)}
-                                  className="p-1 hover:bg-red-600 hover:bg-opacity-20 text-red-400 rounded"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <p className="text-sm text-slate-400 capitalize">{item.product_type}</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        {editingProduction === item.id && canEdit ? (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <label className="text-slate-400 text-sm w-24">Quantity:</label>
-                              <input
-                                type="number"
-                                value={editValue.quantity}
-                                onChange={(e) => setEditValue({...editValue, quantity: e.target.value})}
-                                placeholder={item.quantity_produced}
-                                className="flex-1 px-3 py-1 bg-slate-800 border border-slate-600 rounded text-white text-sm"
-                              />
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <label className="text-slate-400 text-sm w-24">Workers:</label>
-                              <input
-                                type="number"
-                                value={editValue.workers}
-                                onChange={(e) => setEditValue({...editValue, workers: e.target.value})}
-                                placeholder={item.assigned_workers || 0}
-                                className="flex-1 px-3 py-1 bg-slate-800 border border-slate-600 rounded text-white text-sm"
-                              />
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleUpdateProduction(item.id)}
-                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={() => setEditingProduction(null)}
-                                className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded text-sm"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-slate-300 text-sm">
-                                Progress: {item.quantity_produced} / {item.target_quantity} {item.product_unit}
-                              </span>
-                              {canEdit && (
-                                <button
-                                  onClick={() => {
-                                    setEditingProduction(item.id);
-                                    setEditValue({ quantity: item.quantity_produced, workers: item.assigned_workers || 0 });
-                                  }}
-                                  className="p-1 hover:bg-slate-700 rounded transition-colors"
-                                >
-                                  <Edit className="text-slate-400" size={16} />
-                                </button>
-                              )}
-                            </div>
-                            <div className="text-slate-400 text-sm mb-2">
-                              Workers assigned: {item.assigned_workers || 0}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="w-full bg-slate-700 rounded-full h-2">
-                          <div
-                            className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(item.completion_percentage, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))} */}
                 </div>
 
                 {chartData.some(d => d.value > 0) && (
@@ -1577,6 +1666,114 @@ const handleUpdateProduction = async (productionId) => {
           </div>
         </div>
       )}
+
+      {/* Display Configuration Modal */}
+    {showDisplayModal && selectedProduction && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-slate-800 rounded-xl p-6 max-w-md w-full">
+        <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold text-white">Configure Client Display</h2>
+            <button onClick={() => setShowDisplayModal(false)} className="text-slate-400 hover:text-white">
+            <X size={24} />
+            </button>
+        </div>
+
+        <div className="mb-4">
+            <p className="text-slate-300 mb-2">Product: <span className="font-semibold">{selectedProduction.product_name}</span></p>
+            <p className="text-slate-400 text-sm mb-4">Set different values to show to the client. Leave empty to use actual values.</p>
+            
+            <div className="space-y-4">
+            <div>
+                <label className="block text-slate-300 mb-2 text-sm">Display Quantity</label>
+                <input
+                type="number"
+                value={displayForm.displayQuantity}
+                onChange={(e) => setDisplayForm({...displayForm, displayQuantity: e.target.value})}
+                placeholder={selectedProduction.quantity_produced}
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-green-500"
+                />
+                <p className="text-slate-500 text-xs mt-1">
+                Actual: {selectedProduction.quantity_produced}
+                </p>
+            </div>
+
+            <div>
+                <label className="block text-slate-300 mb-2 text-sm">Display Target</label>
+                <input
+                type="number"
+                value={displayForm.displayTarget}
+                onChange={(e) => setDisplayForm({...displayForm, displayTarget: e.target.value})}
+                placeholder={selectedProduction.target_quantity}
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-green-500"
+                />
+                <p className="text-slate-500 text-xs mt-1">
+                Actual: {selectedProduction.target_quantity}
+                </p>
+            </div>
+            </div>
+
+            {displayForm.displayQuantity && displayForm.displayTarget && (
+            <div className="mt-4 p-3 bg-slate-900 rounded-lg">
+                <p className="text-slate-300 text-sm">Client will see:</p>
+                <p className="text-green-300 font-semibold">
+                {displayForm.displayQuantity} / {displayForm.displayTarget} {selectedProduction.product_unit}
+                </p>
+                <p className="text-slate-400 text-xs">
+                Progress: {Math.round((displayForm.displayQuantity / displayForm.displayTarget) * 100)}%
+                </p>
+            </div>
+            )}
+        </div>
+
+        <div className="flex gap-3">
+            <button
+            onClick={handleUpdateDisplayValues}
+            className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+            >
+            Save Display Settings
+            </button>
+            <button
+            onClick={() => {
+                setShowDisplayModal(false);
+                setSelectedProduction(null);
+                setDisplayForm({ displayQuantity: '', displayTarget: '' });
+            }}
+            className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg"
+            >
+            Cancel
+            </button>
+        </div>
+
+        {(selectedProduction.display_quantity_produced || selectedProduction.display_target_quantity) && (
+            <div className="mt-4 pt-4 border-t border-slate-700">
+            <button
+                onClick={async () => {
+                try {
+                    await axios.put(
+                    `${API_URL}/products/production/${selectedProduction.id}/display`,
+                    {
+                        display_quantity_produced: null,
+                        display_target_quantity: null
+                    },
+                    { headers: getAuthHeader() }
+                    );
+                    setShowDisplayModal(false);
+                    setSelectedProduction(null);
+                    setDisplayForm({ displayQuantity: '', displayTarget: '' });
+                    fetchProjectDetails();
+                } catch (error) {
+                    alert('Failed to reset display values');
+                }
+                }}
+                className="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm"
+            >
+                Reset to Actual Values
+            </button>
+            </div>
+        )}
+        </div>
+    </div>
+    )}
     </div>
   );
 };

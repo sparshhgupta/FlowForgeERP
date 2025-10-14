@@ -44,7 +44,7 @@ const Dashboard = () => {
 
       setStats({
         totalProjects: projects.length,
-        activeProjects: projects.filter(p => p.status === 'active').length,
+        activeProjects: projects.filter(p => p.status !== 'on-hold').length,
         totalWorkers: attendanceSummary.total_workers || 0,
         presentToday: attendanceSummary.present_count || 0,
         notMarkedCount: attendanceSummary.not_marked_count || 0

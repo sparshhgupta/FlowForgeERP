@@ -25,7 +25,10 @@ router.get('/production/:projectId', authenticateToken, async (req, res) => {
         p.name as product_name,
         p.type as product_type,
         p.unit,
-        ROUND((pp.quantity_produced::decimal / pp.target_quantity::decimal) * 100, 2) as completion_percentage
+        ROUND((pp.quantity_produced::decimal / pp.target_quantity::decimal) * 100, 2) as completion_percentage,
+        ROUND((COALESCE(pp.display_quantity_produced, pp.quantity_produced)::decimal / COALESCE(pp.display_target_quantity, pp.target_quantity)::decimal) * 100, 2) as display_completion_percentage,
+        COALESCE(pp.display_quantity_produced, pp.quantity_produced) as display_quantity,
+        COALESCE(pp.display_target_quantity, pp.target_quantity) as display_target
       FROM product_production pp
       JOIN products p ON pp.product_id = p.id
       WHERE pp.project_id = $1
@@ -74,6 +77,30 @@ router.put('/production/:id', authenticateToken, authorizeRole('owner', 'supervi
   } catch (error) {
     console.error('Error updating production:', error);
     res.status(500).json({ error: 'Failed to update production' });
+  }
+});
+
+// Update display values (owner only)
+router.put('/production/:id/display', authenticateToken, authorizeRole('owner'), async (req, res) => {
+  const { id } = req.params;
+  const { display_quantity_produced, display_target_quantity } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE product_production 
+       SET display_quantity_produced = $1, display_target_quantity = $2, last_updated = CURRENT_TIMESTAMP 
+       WHERE id = $3 RETURNING *`,
+      [display_quantity_produced || null, display_target_quantity || null, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Production record not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating display values:', error);
+    res.status(500).json({ error: 'Failed to update display values' });
   }
 });
 

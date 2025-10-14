@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Building2, Package, Calendar, TrendingUp, CheckCircle, Clock, AlertCircle, LogOut } from 'lucide-react';
+import { Building2, Package, Calendar, TrendingUp, CheckCircle, Clock, AlertCircle, LogOut, Eye } from 'lucide-react';
 
 const ClientPortal = () => {
   const { id } = useParams();
@@ -101,13 +101,19 @@ const ClientPortal = () => {
               <p className="text-xs text-slate-400">Client Portal</p>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
-          >
-            <LogOut size={18} />
-            <span>Logout</span>
-          </button>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-slate-300 text-sm">Project ID</p>
+              <p className="text-white font-semibold">#{project.id}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            >
+              <LogOut size={18} />
+              <span>Logout</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -115,7 +121,7 @@ const ClientPortal = () => {
         {/* Project Header */}
         <div className="mb-8">
           <div className="flex items-start justify-between mb-4">
-            <div>
+            <div className="flex-1">
               <h2 className="text-3xl font-bold text-white mb-2">{project.name}</h2>
               <p className="text-slate-400">{project.description}</p>
             </div>
@@ -125,10 +131,11 @@ const ClientPortal = () => {
             </div>
           </div>
 
-          <div className="text-slate-300">
-            <p className="mb-1">Project ID: <span className="text-white font-semibold">#{project.id}</span></p>
-            <p>Client: <span className="text-white font-semibold">{project.client_name}</span></p>
-          </div>
+          {project.client_name && (
+            <div className="text-slate-300">
+              <p>Client: <span className="text-white font-semibold">{project.client_name}</span></p>
+            </div>
+          )}
         </div>
 
         {/* Overall Progress */}
@@ -177,42 +184,65 @@ const ClientPortal = () => {
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Production Details */}
           <div className="bg-slate-800 bg-opacity-50 backdrop-blur-sm border border-slate-700 rounded-xl p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <Package className="text-blue-400" size={24} />
-              <h2 className="text-2xl font-bold text-white">Production Status</h2>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Package className="text-blue-400" size={24} />
+                <h2 className="text-2xl font-bold text-white">Production Status</h2>
+              </div>
+              <div className="flex items-center gap-2 text-slate-400">
+                <Eye size={16} />
+                <span className="text-sm">Client View</span>
+              </div>
             </div>
 
             {production.length === 0 ? (
               <p className="text-slate-400 text-center py-8">No production details available yet</p>
             ) : (
               <div className="space-y-4">
-                {production.map((item) => (
-                  <div
-                    key={item.id}
-                    className="bg-slate-900 bg-opacity-50 rounded-lg p-4 border border-slate-700"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h4 className="text-white font-medium">{item.product_name}</h4>
-                        <p className="text-sm text-slate-400 capitalize">{item.product_type}</p>
+                {production.map((item) => {
+                  // Use display values if available, otherwise use actual values
+                  const displayQuantity = item.display_quantity || item.quantity_produced;
+                  const displayTarget = item.display_target || item.target_quantity;
+                  const displayPercentage = item.completion_percentage;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="bg-slate-900 bg-opacity-50 rounded-lg p-4 border border-slate-700"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="text-white font-medium">{item.product_name}</h4>
+                          <p className="text-sm text-slate-400 capitalize">{item.product_type}</p>
+                        </div>
+                        <span className="px-3 py-1 bg-blue-500 bg-opacity-20 text-blue-300 rounded-full text-sm font-medium">
+                          {displayPercentage}%
+                        </span>
                       </div>
-                      <span className="px-3 py-1 bg-blue-500 bg-opacity-20 text-blue-300 rounded-full text-sm font-medium">
-                        {item.completion_percentage}%
-                      </span>
-                    </div>
 
-                    <p className="text-slate-300 text-sm mb-2">
-                      {item.quantity_produced} / {item.target_quantity} {item.product_unit}
-                    </p>
+                      <p className="text-slate-300 text-sm mb-2">
+                        {displayQuantity} / {displayTarget} {item.product_unit}
+                      </p>
 
-                    <div className="w-full bg-slate-700 rounded-full h-2">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(item.completion_percentage, 100)}%` }}
-                      />
+                      <div className="w-full bg-slate-700 rounded-full h-2">
+                        <div
+                          className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(displayPercentage, 100)}%` }}
+                        />
+                      </div>
+
+                      {/* Show note if display values are being used */}
+                      {(item.display_quantity_produced || item.display_target_quantity) && (
+                        <div className="mt-2 flex items-center gap-1">
+                          <Eye size={12} className="text-green-400" />
+                          <p className="text-xs text-green-400">
+                            Custom progress view configured
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -242,7 +272,9 @@ const ClientPortal = () => {
                           <EntryIcon size={16} className="text-white" />
                         </div>
                         <div className="flex-1 pb-6">
-                          <p className="text-white font-medium">{entryStatusInfo.label}</p>
+                          <p className="text-white font-medium capitalize">
+                            {entry.status.replace('-', ' ')}
+                          </p>
                           {entry.notes && (
                             <p className="text-slate-400 text-sm mt-1">{entry.notes}</p>
                           )}
@@ -254,6 +286,7 @@ const ClientPortal = () => {
                               hour: '2-digit',
                               minute: '2-digit'
                             })}
+                            {entry.changed_by_name && ` by ${entry.changed_by_name}`}
                           </p>
                         </div>
                       </div>
@@ -264,6 +297,20 @@ const ClientPortal = () => {
             )}
           </div>
         </div>
+
+        {/* Information Notice */}
+        {(production.some(item => item.display_quantity_produced || item.display_target_quantity)) && (
+          <div className="mt-6 bg-green-500 bg-opacity-10 border border-green-500 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Eye className="text-green-400" size={18} />
+              <h4 className="text-green-300 font-semibold">Custom Progress View</h4>
+            </div>
+            <p className="text-green-200 text-sm">
+              The progress shown reflects the customized view configured by our team to provide 
+              the most relevant information for your project requirements.
+            </p>
+          </div>
+        )}
 
         {/* Contact Section */}
         <div className="mt-8 bg-blue-500 bg-opacity-10 border border-blue-500 rounded-xl p-6">
@@ -288,6 +335,7 @@ const ClientPortal = () => {
       <footer className="bg-slate-800 bg-opacity-50 backdrop-blur-sm border-t border-slate-700 py-6 mt-12">
         <div className="container mx-auto px-6 text-center text-slate-400">
           <p>&copy; 2025 Parasnath Build. All rights reserved.</p>
+          <p className="text-xs mt-1">Client Portal - Real-time Project Tracking</p>
         </div>
       </footer>
     </div>

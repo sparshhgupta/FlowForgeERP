@@ -76,14 +76,23 @@ router.get('/project/:id/:password', async (req, res) => {
       return res.status(403).json({ error: 'Invalid password' });
     }
 
-    // Get production details
+    // Get production details - use display values if available
     const productionResult = await pool.query(`
       SELECT 
-        pp.*,
+        pp.id,
+        pp.product_id,
+        pp.target_quantity,
+        pp.quantity_produced,
+        pp.assigned_workers,
+        pp.display_quantity_produced,
+        pp.display_target_quantity,
         prod.name as product_name,
         prod.type as product_type,
         prod.unit as product_unit,
-        ROUND((pp.quantity_produced::decimal / pp.target_quantity::decimal) * 100, 2) as completion_percentage
+        ROUND((pp.quantity_produced::decimal / pp.target_quantity::decimal) * 100, 2) as actual_completion_percentage,
+        ROUND((COALESCE(pp.display_quantity_produced, pp.quantity_produced)::decimal / COALESCE(pp.display_target_quantity, pp.target_quantity)::decimal) * 100, 2) as completion_percentage,
+        COALESCE(pp.display_quantity_produced, pp.quantity_produced) as display_quantity,
+        COALESCE(pp.display_target_quantity, pp.target_quantity) as display_target
       FROM product_production pp
       JOIN products prod ON pp.product_id = prod.id
       WHERE pp.project_id = $1
@@ -101,7 +110,7 @@ router.get('/project/:id/:password', async (req, res) => {
       ORDER BY pt.created_at DESC
     `, [id]);
 
-    // Calculate overall completion
+    // Calculate overall completion using display values
     const overallCompletion = productionResult.rows.length > 0
       ? productionResult.rows.reduce((sum, item) => sum + parseFloat(item.completion_percentage), 0) / productionResult.rows.length
       : 0;
