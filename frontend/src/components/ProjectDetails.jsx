@@ -75,27 +75,28 @@ const ProjectDetails = () => {
   }, [id]);
 
   const fetchProjectDetails = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/projects/${id}`, {
-        headers: getAuthHeader()
-      });
-      setProjectData(response.data);
-      setEditProjectForm({
-        name: response.data.project.name,
-        description: response.data.project.description || '',
-        status: response.data.project.status,
-        expected_delivery_date: response.data.project.expected_delivery_date?.split('T')[0] || '',
-        actual_delivery_date: response.data.project.actual_delivery_date?.split('T')[0] || '',
-        client_name: response.data.project.client_name || '',
-        client_email: response.data.project.client_email || '',
-        client_phone: response.data.project.client_phone || ''
-      });
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching project details:', error);
-      setLoading(false);
-    }
-  };
+  try {
+    const response = await axios.get(`${API_URL}/projects/${id}`, {
+      headers: getAuthHeader()
+    });
+    setProjectData(response.data);
+    setEditProjectForm({
+      name: response.data.project.name,
+      description: response.data.project.description || '',
+      status: response.data.project.status,
+      project_value: response.data.project.project_value || '',
+      expected_delivery_date: response.data.project.expected_delivery_date?.split('T')[0] || '',
+      actual_delivery_date: response.data.project.actual_delivery_date?.split('T')[0] || '',
+      client_name: response.data.project.client_name || '',
+      client_email: response.data.project.client_email || '',
+      client_phone: response.data.project.client_phone || ''
+    });
+    setLoading(false);
+  } catch (error) {
+    console.error('Error fetching project details:', error);
+    setLoading(false);
+  }
+};
 
   const fetchAllData = async () => {
     try {
@@ -1092,7 +1093,92 @@ const handleUpdateDisplayValues = async () => {
             </div>
 
             {/* Payments */}
-            <div className="bg-slate-800 bg-opacity-50 backdrop-blur-sm border border-slate-700 rounded-xl p-6">
+            {/* Payments */}
+<div className="bg-slate-800 bg-opacity-50 backdrop-blur-sm border border-slate-700 rounded-xl p-6">
+  <div className="flex justify-between items-center mb-4">
+    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+      <DollarSign className="text-green-400" size={20} />
+      Payments
+    </h3>
+    {canEdit && (
+      <button
+        onClick={() => setShowAddPaymentModal(true)}
+        className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm flex items-center gap-1"
+      >
+        <Plus size={16} />
+        Add Payment
+      </button>
+    )}
+  </div>
+
+  {/* Payment Summary Cards */}
+  <div className="grid grid-cols-3 gap-4 mb-4 p-3 bg-slate-900 bg-opacity-50 rounded-lg">
+    <div className="text-center">
+      <p className="text-xs text-slate-400">Advance Paid</p>
+      <p className="text-sm font-bold text-blue-400">{formatCurrency(payments.totals.advance_paid || 0)}</p>
+    </div>
+    <div className="text-center">
+      <p className="text-xs text-slate-400">Pending</p>
+      <p className="text-sm font-bold text-orange-400">{formatCurrency(payments.totals.pending_amount || 0)}</p>
+    </div>
+    <div className="text-center">
+      <p className="text-xs text-slate-400">Total Paid</p>
+      <p className="text-sm font-bold text-green-400">{formatCurrency(payments.totals.total_paid || 0)}</p>
+    </div>
+  </div>
+
+  {/* Total Project Value */}
+  {payments.totals.total_project_value > 0 && (
+    <div className="mb-4 p-3 bg-blue-500 bg-opacity-10 border border-blue-500 rounded-lg">
+      <div className="flex justify-between items-center">
+        <span className="text-slate-300 text-sm">Total Project Value:</span>
+        <span className="text-white font-bold">{formatCurrency(payments.totals.total_project_value || 0)}</span>
+      </div>
+    </div>
+  )}
+
+  {payments.payments && payments.payments.length > 0 ? (
+    <div className="space-y-2 max-h-64 overflow-y-auto">
+      {payments.payments.map((payment) => (
+        <div
+          key={payment.id}
+          className="bg-slate-900 bg-opacity-50 rounded-lg p-3 flex justify-between items-start"
+        >
+          <div className="flex-1">
+            <div className="flex justify-between items-start mb-1">
+              <p className="text-white font-medium">{formatCurrency(payment.amount)}</p>
+              <span className={`px-2 py-1 rounded text-xs font-medium capitalize ${
+                payment.payment_type === 'advance' ? 'bg-blue-500 bg-opacity-20 text-blue-300' :
+                payment.payment_type === 'partial' ? 'bg-purple-500 bg-opacity-20 text-purple-300' :
+                'bg-green-500 bg-opacity-20 text-green-300'
+              }`}>
+                {payment.payment_type}
+              </span>
+            </div>
+            <p className="text-xs text-slate-400">{payment.payment_method} • {formatDate(payment.payment_date)}</p>
+            {payment.transaction_reference && (
+              <p className="text-xs text-slate-500">Ref: {payment.transaction_reference}</p>
+            )}
+            {payment.notes && (
+              <p className="text-xs text-slate-400 mt-1">{payment.notes}</p>
+            )}
+          </div>
+          {user?.role === 'owner' && (
+            <button
+              onClick={() => handleDeletePayment(payment.id)}
+              className="p-1 hover:bg-red-600 hover:bg-opacity-20 text-red-400 rounded ml-2"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  ) : (
+    <p className="text-slate-400 text-center py-4 text-sm">No payments recorded</p>
+  )}
+</div>
+            {/* <div className="bg-slate-800 bg-opacity-50 backdrop-blur-sm border border-slate-700 rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <DollarSign className="text-green-400" size={20} />
@@ -1150,7 +1236,7 @@ const handleUpdateDisplayValues = async () => {
               ) : (
                 <p className="text-slate-400 text-center py-4 text-sm">No payments recorded</p>
               )}
-            </div>
+            </div> */}
           </div>
         </div>
 
@@ -1546,6 +1632,7 @@ const handleUpdateDisplayValues = async () => {
       )}
 
       {/* Edit Project Modal */}
+      {/*
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-slate-800 rounded-xl p-6 max-w-2xl w-full my-8">
@@ -1666,6 +1753,141 @@ const handleUpdateDisplayValues = async () => {
           </div>
         </div>
       )}
+      */}
+
+      {/* Edit Project Modal */}
+{showEditModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="bg-slate-800 rounded-xl p-6 max-w-2xl w-full my-8">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-white">Edit Project</h2>
+        <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-white">
+          <X size={24} />
+        </button>
+      </div>
+
+      <div className="space-y-4 mb-4 max-h-96 overflow-y-auto">
+        <div>
+          <label className="block text-slate-300 mb-2 text-sm">Project Name *</label>
+          <input
+            type="text"
+            value={editProjectForm.name}
+            onChange={(e) => setEditProjectForm({...editProjectForm, name: e.target.value})}
+            className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-slate-300 mb-2 text-sm">Description</label>
+          <textarea
+            value={editProjectForm.description}
+            onChange={(e) => setEditProjectForm({...editProjectForm, description: e.target.value})}
+            rows="3"
+            className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+          />
+        </div>
+
+        {/* Add Project Value Field */}
+        <div>
+          <label className="block text-slate-300 mb-2 text-sm">Project Value (₹)</label>
+          <input
+            type="number"
+            value={editProjectForm.project_value}
+            onChange={(e) => setEditProjectForm({...editProjectForm, project_value: e.target.value})}
+            className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+            placeholder="Enter total project value"
+          />
+        </div>
+
+        <div>
+          <label className="block text-slate-300 mb-2 text-sm">Status *</label>
+          <select
+            value={editProjectForm.status}
+            onChange={(e) => setEditProjectForm({...editProjectForm, status: e.target.value})}
+            className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+          >
+            <option value="pitching">Pitching</option>
+            <option value="received">Received</option>
+            <option value="started">Started</option>
+            <option value="on-hold">On Hold</option>
+            <option value="finished-production">Finished Production</option>
+            <option value="payment-pending">Payment Pending</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-slate-300 mb-2 text-sm">Expected Delivery</label>
+            <input
+              type="date"
+              value={editProjectForm.expected_delivery_date}
+              onChange={(e) => setEditProjectForm({...editProjectForm, expected_delivery_date: e.target.value})}
+              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-300 mb-2 text-sm">Actual Delivery</label>
+            <input
+              type="date"
+              value={editProjectForm.actual_delivery_date}
+              onChange={(e) => setEditProjectForm({...editProjectForm, actual_delivery_date: e.target.value})}
+              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-slate-300 mb-2 text-sm">Client Name</label>
+          <input
+            type="text"
+            value={editProjectForm.client_name}
+            onChange={(e) => setEditProjectForm({...editProjectForm, client_name: e.target.value})}
+            className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-slate-300 mb-2 text-sm">Client Email</label>
+            <input
+              type="email"
+              value={editProjectForm.client_email}
+              onChange={(e) => setEditProjectForm({...editProjectForm, client_email: e.target.value})}
+              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-300 mb-2 text-sm">Client Phone</label>
+            <input
+              type="tel"
+              value={editProjectForm.client_phone}
+              onChange={(e) => setEditProjectForm({...editProjectForm, client_phone: e.target.value})}
+              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          onClick={handleUpdateProject}
+          className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+        >
+          Update Project
+        </button>
+        <button
+          onClick={() => setShowEditModal(false)}
+          className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Display Configuration Modal */}
     {showDisplayModal && selectedProduction && (

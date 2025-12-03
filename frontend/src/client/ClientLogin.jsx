@@ -52,7 +52,7 @@ const ClientLogin = () => {
               <Building2 className="text-white" size={40} />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Parasnath Build</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">Parasnath Buildwell</h1>
           <p className="text-slate-400">Client Portal - Track Your Order</p>
         </div>
 
@@ -113,7 +113,7 @@ const ClientLogin = () => {
 
           <div className="mt-6 pt-6 border-t border-slate-700">
             <p className="text-sm text-slate-400 text-center">
-              Contact Parasnath Build for your project credentials
+              Contact Parasnath Buildwell for your project credentials
             </p>
             <p className="text-xs text-slate-500 text-center mt-2">
               Email: info@parasnathbuild.com | Phone: +91-XXXXXXXXXX
@@ -123,7 +123,7 @@ const ClientLogin = () => {
 
         <div className="mt-6 text-center">
           <p className="text-slate-500 text-sm">
-            © 2025 Parasnath Build. All rights reserved.
+            © 2025 Parasnath Buildwell. All rights reserved.
           </p>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import Navbar from './Navbar';
-import { DollarSign, AlertCircle, Plus, Eye, Calendar, CreditCard } from 'lucide-react';
+import { DollarSign, AlertCircle, Plus, Eye, Calendar, CreditCard, TrendingUp } from 'lucide-react';
 
 const PaymentsPage = () => {
   const navigate = useNavigate();
@@ -43,14 +43,23 @@ const PaymentsPage = () => {
   };
 
   const getStatusColor = (project) => {
+    if (project.actual_delivery_date) return 'border-green-500';
+    
     const deliveryDate = new Date(project.expected_delivery_date);
     const today = new Date();
     const daysUntilDelivery = Math.ceil((deliveryDate - today) / (1000 * 60 * 60 * 24));
 
-    if (project.actual_delivery_date) return 'border-green-500';
     if (daysUntilDelivery < 0) return 'border-red-500';
     if (daysUntilDelivery < 7) return 'border-yellow-500';
     return 'border-blue-500';
+  };
+
+  const getPaymentProgress = (project) => {
+    const totalPaid = parseFloat(project.total_paid || 0);
+    const totalValue = parseFloat(project.total_project_value || 0);
+    
+    if (totalValue === 0) return 0;
+    return Math.min((totalPaid / totalValue) * 100, 100);
   };
 
   if (loading) {
@@ -64,6 +73,11 @@ const PaymentsPage = () => {
     );
   }
 
+  // Calculate summary statistics
+  const totalPendingAmount = pendingPayments.reduce((sum, p) => sum + parseFloat(p.pending_amount || 0), 0);
+  const totalReceived = pendingPayments.reduce((sum, p) => sum + parseFloat(p.total_paid || 0), 0);
+  const totalProjectValue = pendingPayments.reduce((sum, p) => sum + parseFloat(p.total_project_value || 0), 0);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <Navbar />
@@ -75,7 +89,7 @@ const PaymentsPage = () => {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-4 gap-6 mb-8">
           <div className="bg-slate-800 bg-opacity-50 backdrop-blur-sm border border-slate-700 rounded-xl p-6">
             <div className="flex items-center gap-2 mb-2">
               <AlertCircle className="text-yellow-400" size={20} />
@@ -90,27 +104,34 @@ const PaymentsPage = () => {
               <h3 className="text-slate-400 text-sm font-medium">Total Received</h3>
             </div>
             <p className="text-3xl font-bold text-green-400">
-              {formatCurrency(pendingPayments.reduce((sum, p) => sum + parseFloat(p.total_paid || 0), 0))}
+              {formatCurrency(totalReceived)}
             </p>
           </div>
 
           <div className="bg-slate-800 bg-opacity-50 backdrop-blur-sm border border-slate-700 rounded-xl p-6">
             <div className="flex items-center gap-2 mb-2">
-              <Calendar className="text-blue-400" size={20} />
-              <h3 className="text-slate-400 text-sm font-medium">Upcoming Deliveries</h3>
+              <CreditCard className="text-orange-400" size={20} />
+              <h3 className="text-slate-400 text-sm font-medium">Pending Amount</h3>
             </div>
-            <p className="text-3xl font-bold text-white">
-              {pendingPayments.filter(p => {
-                const daysUntil = Math.ceil((new Date(p.expected_delivery_date) - new Date()) / (1000 * 60 * 60 * 24));
-                return daysUntil > 0 && daysUntil < 14;
-              }).length}
+            <p className="text-3xl font-bold text-orange-400">
+              {formatCurrency(totalPendingAmount)}
+            </p>
+          </div>
+
+          <div className="bg-slate-800 bg-opacity-50 backdrop-blur-sm border border-slate-700 rounded-xl p-6">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="text-blue-400" size={20} />
+              <h3 className="text-slate-400 text-sm font-medium">Total Value</h3>
+            </div>
+            <p className="text-3xl font-bold text-blue-400">
+              {formatCurrency(totalProjectValue)}
             </p>
           </div>
         </div>
 
         {/* Pending Payments List */}
         <div className="bg-slate-800 bg-opacity-50 backdrop-blur-sm border border-slate-700 rounded-xl p-6">
-          <h2 className="text-2xl font-bold text-white mb-6">Projects Awaiting Payment</h2>
+          <h2 className="text-2xl font-bold text-white mb-6">Projects Payment Status</h2>
 
           {pendingPayments.length === 0 ? (
             <div className="text-center py-12">
@@ -119,13 +140,14 @@ const PaymentsPage = () => {
               <p className="text-slate-500 text-sm mt-2">All projects are up to date</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {pendingPayments.map((project) => {
                 const deliveryDate = new Date(project.expected_delivery_date);
                 const today = new Date();
                 const daysUntilDelivery = Math.ceil((deliveryDate - today) / (1000 * 60 * 60 * 24));
                 const isOverdue = daysUntilDelivery < 0;
                 const isUrgent = daysUntilDelivery >= 0 && daysUntilDelivery < 7;
+                const paymentProgress = getPaymentProgress(project);
 
                 return (
                   <div
@@ -143,7 +165,26 @@ const PaymentsPage = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-bold text-green-400">{formatCurrency(project.total_paid)}</p>
-                        <p className="text-sm text-slate-400">Received</p>
+                        <p className="text-sm text-slate-400">Paid</p>
+                      </div>
+                    </div>
+
+                    {/* Payment Progress */}
+                    <div className="mb-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-slate-400 text-sm">Payment Progress</span>
+                        <span className="text-slate-300 text-sm">{paymentProgress.toFixed(1)}%</span>
+                      </div>
+                      <div className="w-full bg-slate-700 rounded-full h-2">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${paymentProgress}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-xs text-slate-500 mt-1">
+                        <span>Paid: {formatCurrency(project.total_paid)}</span>
+                        <span>Pending: {formatCurrency(project.pending_amount)}</span>
+                        <span>Total: {formatCurrency(project.total_project_value)}</span>
                       </div>
                     </div>
 
@@ -168,6 +209,22 @@ const PaymentsPage = () => {
                           <p className="text-green-400 font-medium">{formatDate(project.actual_delivery_date)}</p>
                         </div>
                       )}
+                    </div>
+
+                    {/* Payment Breakdown */}
+                    <div className="grid grid-cols-3 gap-2 mb-4 p-3 bg-slate-800 rounded-lg">
+                      <div className="text-center">
+                        <p className="text-xs text-blue-400">Advance</p>
+                        <p className="text-sm font-bold text-blue-300">{formatCurrency(project.advance_paid)}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-orange-400">Pending</p>
+                        <p className="text-sm font-bold text-orange-300">{formatCurrency(project.pending_amount)}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-green-400">Total Paid</p>
+                        <p className="text-sm font-bold text-green-300">{formatCurrency(project.total_paid)}</p>
+                      </div>
                     </div>
 
                     <div className="flex gap-3">

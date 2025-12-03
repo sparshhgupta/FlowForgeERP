@@ -43,19 +43,26 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Get single project with details
+// Get project by ID
 router.get('/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
 
   try {
     // Get project details
-    const projectResult = await pool.query(
-      'SELECT p.*, u.username as created_by_name FROM projects p LEFT JOIN users u ON p.created_by = u.id WHERE p.id = $1',
-      [id]
-    );
+    const projectResult = await pool.query(`
+      SELECT 
+        p.*,
+        u.username as created_by_name
+      FROM projects p
+      LEFT JOIN users u ON p.created_by = u.id
+      WHERE p.id = $1
+    `, [id]);
 
     if (projectResult.rows.length === 0) {
       return res.status(404).json({ error: 'Project not found' });
     }
+
+    const project = projectResult.rows[0];
 
     // Get production details
     const productionResult = await pool.query(`
@@ -65,21 +72,19 @@ router.get('/:id', authenticateToken, async (req, res) => {
         prod.type as product_type,
         prod.unit as product_unit,
         ROUND((pp.quantity_produced::decimal / pp.target_quantity::decimal) * 100, 2) as completion_percentage,
+        ROUND((COALESCE(pp.display_quantity_produced, pp.quantity_produced)::decimal / COALESCE(pp.display_target_quantity, pp.target_quantity)::decimal) * 100, 2) as display_completion_percentage,
         COALESCE(pp.display_quantity_produced, pp.quantity_produced) as display_quantity,
-        COALESCE(pp.display_target_quantity, pp.target_quantity) as display_target,
-        ROUND((COALESCE(pp.display_quantity_produced, pp.quantity_produced)::decimal / 
-               COALESCE(pp.display_target_quantity, pp.target_quantity)::decimal) * 100, 2) as display_completion_percentage
+        COALESCE(pp.display_target_quantity, pp.target_quantity) as display_target
       FROM product_production pp
       JOIN products prod ON pp.product_id = prod.id
       WHERE pp.project_id = $1
       ORDER BY prod.type, prod.name
     `, [id]);
 
-    // Get permanently assigned workers
+    // Get assigned workers
     const workersResult = await pool.query(`
       SELECT 
-        w.*,
-        pw.assigned_date
+        w.id, w.name, w.phone
       FROM project_workers pw
       JOIN workers w ON pw.worker_id = w.id
       WHERE pw.project_id = $1 AND pw.is_active = true
@@ -97,55 +102,133 @@ router.get('/:id', authenticateToken, async (req, res) => {
       ORDER BY pt.created_at DESC
     `, [id]);
 
-    // Calculate overall completion (actual)
-    const actualCompletion = productionResult.rows.length > 0
-      ? productionResult.rows.reduce((sum, item) => sum + parseFloat(item.completion_percentage || 0), 0) / productionResult.rows.length
-      : 0;
-
-    // Calculate display completion
-    const displayCompletion = productionResult.rows.length > 0
-      ? productionResult.rows.reduce((sum, item) => sum + parseFloat(item.display_completion_percentage || 0), 0) / productionResult.rows.length
-      : 0;
-
     res.json({
-      project: {
-        ...projectResult.rows[0],
-        overall_completion: actualCompletion.toFixed(2),
-        display_overall_completion: displayCompletion.toFixed(2)
-      },
+      project: project,
       production: productionResult.rows,
       workers: workersResult.rows,
       timeline: timelineResult.rows
     });
   } catch (error) {
-    console.error('Error fetching project details:', error);
-    res.status(500).json({ error: 'Failed to fetch project details' });
+    console.error('Error fetching project:', error);
+    res.status(500).json({ error: 'Failed to fetch project' });
   }
 });
+// router.get('/:id', authenticateToken, async (req, res) => {
+//   const { id } = req.params;
+
+//   try {
+//     // Get project details
+//     const projectResult = await pool.query(
+//       'SELECT p.*, u.username as created_by_name FROM projects p LEFT JOIN users u ON p.created_by = u.id WHERE p.id = $1',
+//       [id]
+//     );
+
+//     if (projectResult.rows.length === 0) {
+//       return res.status(404).json({ error: 'Project not found' });
+//     }
+
+//     // Get production details
+//     const productionResult = await pool.query(`
+//       SELECT 
+//         pp.*,
+//         prod.name as product_name,
+//         prod.type as product_type,
+//         prod.unit as product_unit,
+//         ROUND((pp.quantity_produced::decimal / pp.target_quantity::decimal) * 100, 2) as completion_percentage,
+//         COALESCE(pp.display_quantity_produced, pp.quantity_produced) as display_quantity,
+//         COALESCE(pp.display_target_quantity, pp.target_quantity) as display_target,
+//         ROUND((COALESCE(pp.display_quantity_produced, pp.quantity_produced)::decimal / 
+//                COALESCE(pp.display_target_quantity, pp.target_quantity)::decimal) * 100, 2) as display_completion_percentage
+//       FROM product_production pp
+//       JOIN products prod ON pp.product_id = prod.id
+//       WHERE pp.project_id = $1
+//       ORDER BY prod.type, prod.name
+//     `, [id]);
+
+//     // Get permanently assigned workers
+//     const workersResult = await pool.query(`
+//       SELECT 
+//         w.*,
+//         pw.assigned_date
+//       FROM project_workers pw
+//       JOIN workers w ON pw.worker_id = w.id
+//       WHERE pw.project_id = $1 AND pw.is_active = true
+//       ORDER BY w.name
+//     `, [id]);
+
+//     // Get timeline
+//     const timelineResult = await pool.query(`
+//       SELECT 
+//         pt.*,
+//         u.username as changed_by_name
+//       FROM project_timeline pt
+//       LEFT JOIN users u ON pt.changed_by = u.id
+//       WHERE pt.project_id = $1
+//       ORDER BY pt.created_at DESC
+//     `, [id]);
+
+//     // Calculate overall completion (actual)
+//     const actualCompletion = productionResult.rows.length > 0
+//       ? productionResult.rows.reduce((sum, item) => sum + parseFloat(item.completion_percentage || 0), 0) / productionResult.rows.length
+//       : 0;
+
+//     // Calculate display completion
+//     const displayCompletion = productionResult.rows.length > 0
+//       ? productionResult.rows.reduce((sum, item) => sum + parseFloat(item.display_completion_percentage || 0), 0) / productionResult.rows.length
+//       : 0;
+
+//     res.json({
+//       project: {
+//         ...projectResult.rows[0],
+//         overall_completion: actualCompletion.toFixed(2),
+//         display_overall_completion: displayCompletion.toFixed(2)
+//       },
+//       production: productionResult.rows,
+//       workers: workersResult.rows,
+//       timeline: timelineResult.rows
+//     });
+//   } catch (error) {
+//     console.error('Error fetching project details:', error);
+//     res.status(500).json({ error: 'Failed to fetch project details' });
+//   }
+// });
 
 // Create new project
-router.post('/', authenticateToken, authorizeRole('owner'), async (req, res) => {
+// Create new project
+router.post('/', authenticateToken, authorizeRole('owner', 'supervisor'), async (req, res) => {
   const { 
-    name, description, status, start_date, target_completion_date, expected_delivery_date,
-    client_name, client_email, client_phone 
+    name, description, status, target_completion_date, expected_delivery_date,
+    client_name, client_email, client_phone, project_value 
   } = req.body;
 
   try {
+    // Handle empty date strings and project value
+    const expectedDelivery = expected_delivery_date === '' || expected_delivery_date === undefined ? null : expected_delivery_date;
+    const targetCompletion = target_completion_date === '' || target_completion_date === undefined ? null : target_completion_date;
+    const projectValue = project_value === '' || project_value === undefined ? null : parseFloat(project_value);
+
     const result = await pool.query(
-      `INSERT INTO projects 
-       (name, description, status, start_date, target_completion_date, expected_delivery_date, 
-        client_name, client_email, client_phone, created_by) 
+      `INSERT INTO projects (name, description, status, target_completion_date, 
+        expected_delivery_date, client_name, client_email, client_phone, project_value, created_by) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
        RETURNING *`,
-      [name, description, status || 'pitching', start_date, target_completion_date, expected_delivery_date,
-       client_name, client_email, client_phone, req.user.id]
+      [name, description, status || 'pitching', targetCompletion, expectedDelivery,
+       client_name, client_email, client_phone, projectValue, req.user.id]
     );
 
-    // Add timeline entry
+    // Add initial timeline entry
     await pool.query(
       'INSERT INTO project_timeline (project_id, status, notes, changed_by) VALUES ($1, $2, $3, $4)',
-      [result.rows[0].id, status || 'pitching', 'Project created', req.user.id]
+      [result.rows[0].id, result.rows[0].status, 'Project created', req.user.id]
     );
+
+    // Add timeline entry if project value was set
+    if (projectValue !== null && projectValue > 0) {
+      await pool.query(
+        'INSERT INTO project_timeline (project_id, status, notes, changed_by) VALUES ($1, $2, $3, $4)',
+        [result.rows[0].id, result.rows[0].status, `Project value set to ₹${projectValue.toLocaleString('en-IN')}`, req.user.id]
+      );
+    }
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -153,13 +236,43 @@ router.post('/', authenticateToken, authorizeRole('owner'), async (req, res) => 
     res.status(500).json({ error: 'Failed to create project' });
   }
 });
+// router.post('/', authenticateToken, authorizeRole('owner'), async (req, res) => {
+//   const { 
+//     name, description, status, start_date, target_completion_date, expected_delivery_date,
+//     client_name, client_email, client_phone 
+//   } = req.body;
 
+//   try {
+//     const result = await pool.query(
+//       `INSERT INTO projects 
+//        (name, description, status, start_date, target_completion_date, expected_delivery_date, 
+//         client_name, client_email, client_phone, created_by) 
+//        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+//        RETURNING *`,
+//       [name, description, status || 'pitching', start_date, target_completion_date, expected_delivery_date,
+//        client_name, client_email, client_phone, req.user.id]
+//     );
+
+//     // Add timeline entry
+//     await pool.query(
+//       'INSERT INTO project_timeline (project_id, status, notes, changed_by) VALUES ($1, $2, $3, $4)',
+//       [result.rows[0].id, status || 'pitching', 'Project created', req.user.id]
+//     );
+
+//     res.status(201).json(result.rows[0]);
+//   } catch (error) {
+//     console.error('Error creating project:', error);
+//     res.status(500).json({ error: 'Failed to create project' });
+//   }
+// });
+
+// Update project
 // Update project
 router.put('/:id', authenticateToken, authorizeRole('owner', 'supervisor'), async (req, res) => {
   const { id } = req.params;
   const { 
     name, description, status, target_completion_date, expected_delivery_date, actual_delivery_date,
-    client_name, client_email, client_phone 
+    client_name, client_email, client_phone, project_value
   } = req.body;
 
   try {
@@ -167,20 +280,21 @@ router.put('/:id', authenticateToken, authorizeRole('owner', 'supervisor'), asyn
     const oldProject = await pool.query('SELECT status FROM projects WHERE id = $1', [id]);
     const oldStatus = oldProject.rows[0]?.status;
 
-    // Handle empty date strings
+    // Handle empty date strings and project value
     const expectedDelivery = expected_delivery_date === '' || expected_delivery_date === undefined ? null : expected_delivery_date;
     const actualDelivery = actual_delivery_date === '' || actual_delivery_date === undefined ? null : actual_delivery_date;
     const targetCompletion = target_completion_date === '' || target_completion_date === undefined ? null : target_completion_date;
+    const projectValue = project_value === '' || project_value === undefined ? null : parseFloat(project_value);
 
     const result = await pool.query(
       `UPDATE projects 
        SET name = $1, description = $2, status = $3, target_completion_date = $4, 
            expected_delivery_date = $5, actual_delivery_date = $6,
-           client_name = $7, client_email = $8, client_phone = $9
-       WHERE id = $10 
+           client_name = $7, client_email = $8, client_phone = $9, project_value = $10
+       WHERE id = $11 
        RETURNING *`,
       [name, description, status, targetCompletion, expectedDelivery, actualDelivery,
-       client_name, client_email, client_phone, id]
+       client_name, client_email, client_phone, projectValue, id]
     );
 
     if (result.rows.length === 0) {
@@ -195,12 +309,66 @@ router.put('/:id', authenticateToken, authorizeRole('owner', 'supervisor'), asyn
       );
     }
 
+    // Add timeline entry if project value was set or updated
+    if (projectValue !== null && projectValue > 0) {
+      await pool.query(
+        'INSERT INTO project_timeline (project_id, status, notes, changed_by) VALUES ($1, $2, $3, $4)',
+        [id, status, `Project value set to ₹${projectValue.toLocaleString('en-IN')}`, req.user.id]
+      );
+    }
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating project:', error);
     res.status(500).json({ error: 'Failed to update project' });
   }
 });
+// router.put('/:id', authenticateToken, authorizeRole('owner', 'supervisor'), async (req, res) => {
+//   const { id } = req.params;
+//   const { 
+//     name, description, status, target_completion_date, expected_delivery_date, actual_delivery_date,
+//     client_name, client_email, client_phone 
+//   } = req.body;
+
+//   try {
+//     // Get old status for timeline
+//     const oldProject = await pool.query('SELECT status FROM projects WHERE id = $1', [id]);
+//     const oldStatus = oldProject.rows[0]?.status;
+
+//     // Handle empty date strings
+//     const expectedDelivery = expected_delivery_date === '' || expected_delivery_date === undefined ? null : expected_delivery_date;
+//     const actualDelivery = actual_delivery_date === '' || actual_delivery_date === undefined ? null : actual_delivery_date;
+//     const targetCompletion = target_completion_date === '' || target_completion_date === undefined ? null : target_completion_date;
+
+//     const result = await pool.query(
+//       `UPDATE projects 
+//        SET name = $1, description = $2, status = $3, target_completion_date = $4, 
+//            expected_delivery_date = $5, actual_delivery_date = $6,
+//            client_name = $7, client_email = $8, client_phone = $9
+//        WHERE id = $10 
+//        RETURNING *`,
+//       [name, description, status, targetCompletion, expectedDelivery, actualDelivery,
+//        client_name, client_email, client_phone, id]
+//     );
+
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ error: 'Project not found' });
+//     }
+
+//     // Add timeline entry if status changed
+//     if (oldStatus !== status) {
+//       await pool.query(
+//         'INSERT INTO project_timeline (project_id, status, notes, changed_by) VALUES ($1, $2, $3, $4)',
+//         [id, status, `Status changed from ${oldStatus} to ${status}`, req.user.id]
+//       );
+//     }
+
+//     res.json(result.rows[0]);
+//   } catch (error) {
+//     console.error('Error updating project:', error);
+//     res.status(500).json({ error: 'Failed to update project' });
+//   }
+// });
 
 // Set client password
 router.post('/:id/client-password', authenticateToken, authorizeRole('owner'), async (req, res) => {

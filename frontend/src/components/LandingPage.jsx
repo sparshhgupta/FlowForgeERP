@@ -12,7 +12,7 @@ const LandingPage = () => {
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <Building2 className="text-blue-400" size={32} />
-            <h1 className="text-2xl font-bold text-white">Parasnath Build</h1>
+            <h1 className="text-2xl font-bold text-white">Parasnath Buildwell</h1>
           </div>
           <button
             onClick={() => navigate('/login')}
@@ -115,7 +115,7 @@ const LandingPage = () => {
       {/* Footer */}
       <footer className="bg-slate-800 bg-opacity-50 backdrop-blur-sm border-t border-slate-700 py-8 mt-20">
         <div className="container mx-auto px-6 text-center text-slate-400">
-          <p>&copy; 2025 Parasnath Build. All rights reserved.</p>
+          <p>&copy; 2025 Parasnath Buildwell. All rights reserved.</p>
         </div>
       </footer>
     </div>
