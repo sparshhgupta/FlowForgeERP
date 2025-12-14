@@ -1,0 +1,39 @@
+-- Migration: Add product descriptions and related tables
+
+-- Add description column to products table
+ALTER TABLE products
+ADD COLUMN IF NOT EXISTS description TEXT;
+
+-- Add description column to product_production table for project-specific descriptions
+ALTER TABLE product_production
+ADD COLUMN IF NOT EXISTS product_description TEXT;
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_products_type ON products(type);
+CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+
+-- Add comments
+COMMENT ON COLUMN products.description IS 'General product description/specifications';
+COMMENT ON COLUMN product_production.product_description IS 'Project-specific product description (overrides default if set)';
+
+-- Update existing products with descriptions
+UPDATE products 
+SET description = 'High-strength foundation bolts for structural support. Available in various sizes (M8, M10, M12, M16) to meet different load requirements. Material: Grade 8.8 steel with zinc plating for corrosion resistance.'
+WHERE name LIKE '%Foundation Bolt%' AND type = 'bolt';
+
+UPDATE products 
+SET description = 'Durable steel grating for industrial flooring and platforms. Provides excellent drainage and visibility. Pre-galvanized finish for extended outdoor durability.'
+WHERE type = 'grating';
+
+UPDATE products 
+SET description = 'Heavy-duty nuts compatible with foundation bolts. Available in all standard sizes with full thread and lock features. Material: Grade 8 steel with anti-corrosive coating.'
+WHERE name LIKE '%Nut%' AND type = 'bolt';
+
+-- If you have J-Bolt and L-Bolt products
+UPDATE products 
+SET description = 'Specialized J-shaped bolts for concrete embedment. Provides secure anchoring for structural and mechanical applications.'
+WHERE name LIKE '%J-Bolt%' AND type = 'bolt';
+
+UPDATE products 
+SET description = 'L-shaped anchor bolts for corner and edge fastening. Ideal for framework assembly and structural connections.'
+WHERE name LIKE '%L-Bolt%' AND type = 'bolt';

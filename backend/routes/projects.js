@@ -66,20 +66,37 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
     // Get production details
     const productionResult = await pool.query(`
-      SELECT 
-        pp.*,
-        prod.name as product_name,
-        prod.type as product_type,
-        prod.unit as product_unit,
-        ROUND((pp.quantity_produced::decimal / pp.target_quantity::decimal) * 100, 2) as completion_percentage,
-        ROUND((COALESCE(pp.display_quantity_produced, pp.quantity_produced)::decimal / COALESCE(pp.display_target_quantity, pp.target_quantity)::decimal) * 100, 2) as display_completion_percentage,
-        COALESCE(pp.display_quantity_produced, pp.quantity_produced) as display_quantity,
-        COALESCE(pp.display_target_quantity, pp.target_quantity) as display_target
-      FROM product_production pp
-      JOIN products prod ON pp.product_id = prod.id
-      WHERE pp.project_id = $1
-      ORDER BY prod.type, prod.name
-    `, [id]);
+  SELECT 
+    pp.*,
+    prod.name as product_name,
+    prod.type as product_type,
+    prod.unit as product_unit,
+    ROUND((pp.quantity_produced::decimal / pp.target_quantity::decimal) * 100, 2) as completion_percentage,
+    ROUND((COALESCE(pp.display_quantity_produced, pp.quantity_produced)::decimal / COALESCE(pp.display_target_quantity, pp.target_quantity)::decimal) * 100, 2) as display_completion_percentage,
+    COALESCE(pp.display_quantity_produced, pp.quantity_produced) as display_quantity,
+    COALESCE(pp.display_target_quantity, pp.target_quantity) as display_target,
+    pp.dimensions
+  FROM product_production pp
+  JOIN products prod ON pp.product_id = prod.id
+  WHERE pp.project_id = $1
+  ORDER BY prod.type, prod.name
+`, [id]);
+
+    // const productionResult = await pool.query(`
+    //   SELECT 
+    //     pp.*,
+    //     prod.name as product_name,
+    //     prod.type as product_type,
+    //     prod.unit as product_unit,
+    //     ROUND((pp.quantity_produced::decimal / pp.target_quantity::decimal) * 100, 2) as completion_percentage,
+    //     ROUND((COALESCE(pp.display_quantity_produced, pp.quantity_produced)::decimal / COALESCE(pp.display_target_quantity, pp.target_quantity)::decimal) * 100, 2) as display_completion_percentage,
+    //     COALESCE(pp.display_quantity_produced, pp.quantity_produced) as display_quantity,
+    //     COALESCE(pp.display_target_quantity, pp.target_quantity) as display_target
+    //   FROM product_production pp
+    //   JOIN products prod ON pp.product_id = prod.id
+    //   WHERE pp.project_id = $1
+    //   ORDER BY prod.type, prod.name
+    // `, [id]);
 
     // Get assigned workers
     const workersResult = await pool.query(`
@@ -399,16 +416,25 @@ router.post('/:id/client-password', authenticateToken, authorizeRole('owner'), a
 });
 
 // Add product to project
+// Replace the existing "Add product to project" section in your projects.js with this:
+
+// Add product to project (MODIFIED to include dimensions)
 router.post('/:id/products', authenticateToken, authorizeRole('owner', 'supervisor'), async (req, res) => {
   const { id } = req.params;
-  const { product_id, target_quantity } = req.body;
+  const { product_id, target_quantity, dimensions } = req.body;
 
   try {
+    // Validate dimensions if provided
+    if (dimensions && typeof dimensions !== 'object') {
+      return res.status(400).json({ error: 'Dimensions must be an object' });
+    }
+
     const result = await pool.query(
-      `INSERT INTO product_production (project_id, product_id, target_quantity, quantity_produced, assigned_workers) 
-       VALUES ($1, $2, $3, 0, 0) 
+      `INSERT INTO product_production 
+       (project_id, product_id, target_quantity, quantity_produced, assigned_workers, dimensions) 
+       VALUES ($1, $2, $3, 0, 0, $4) 
        RETURNING *`,
-      [id, product_id, target_quantity]
+      [id, product_id, target_quantity, dimensions ? JSON.stringify(dimensions) : null]
     );
 
     res.status(201).json(result.rows[0]);
@@ -420,6 +446,28 @@ router.post('/:id/products', authenticateToken, authorizeRole('owner', 'supervis
     res.status(500).json({ error: 'Failed to add product to project' });
   }
 });
+
+// router.post('/:id/products', authenticateToken, authorizeRole('owner', 'supervisor'), async (req, res) => {
+//   const { id } = req.params;
+//   const { product_id, target_quantity } = req.body;
+
+//   try {
+//     const result = await pool.query(
+//       `INSERT INTO product_production (project_id, product_id, target_quantity, quantity_produced, assigned_workers) 
+//        VALUES ($1, $2, $3, 0, 0) 
+//        RETURNING *`,
+//       [id, product_id, target_quantity]
+//     );
+
+//     res.status(201).json(result.rows[0]);
+//   } catch (error) {
+//     console.error('Error adding product to project:', error);
+//     if (error.code === '23505') {
+//       return res.status(400).json({ error: 'Product already added to this project' });
+//     }
+//     res.status(500).json({ error: 'Failed to add product to project' });
+//   }
+// });
 
 // Add permanent worker to project
 router.post('/:id/workers', authenticateToken, authorizeRole('owner', 'supervisor'), async (req, res) => {
