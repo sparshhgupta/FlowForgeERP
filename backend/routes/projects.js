@@ -65,7 +65,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
     const project = projectResult.rows[0];
 
     // Get production details
-    const productionResult = await pool.query(`
+    // Get single project with details - Update the production query
+const productionResult = await pool.query(`
   SELECT 
     pp.*,
     prod.name as product_name,
@@ -75,12 +76,33 @@ router.get('/:id', authenticateToken, async (req, res) => {
     ROUND((COALESCE(pp.display_quantity_produced, pp.quantity_produced)::decimal / COALESCE(pp.display_target_quantity, pp.target_quantity)::decimal) * 100, 2) as display_completion_percentage,
     COALESCE(pp.display_quantity_produced, pp.quantity_produced) as display_quantity,
     COALESCE(pp.display_target_quantity, pp.target_quantity) as display_target,
-    pp.dimensions
+    pp.dimensions,
+    (
+      SELECT COUNT(DISTINCT wpa.worker_id)
+      FROM worker_product_assignments wpa
+      WHERE wpa.product_production_id = pp.id AND wpa.date = CURRENT_DATE
+    ) as assigned_workers_count
   FROM product_production pp
   JOIN products prod ON pp.product_id = prod.id
   WHERE pp.project_id = $1
   ORDER BY prod.type, prod.name
 `, [id]);
+//     const productionResult = await pool.query(`
+//   SELECT 
+//     pp.*,
+//     prod.name as product_name,
+//     prod.type as product_type,
+//     prod.unit as product_unit,
+//     ROUND((pp.quantity_produced::decimal / pp.target_quantity::decimal) * 100, 2) as completion_percentage,
+//     ROUND((COALESCE(pp.display_quantity_produced, pp.quantity_produced)::decimal / COALESCE(pp.display_target_quantity, pp.target_quantity)::decimal) * 100, 2) as display_completion_percentage,
+//     COALESCE(pp.display_quantity_produced, pp.quantity_produced) as display_quantity,
+//     COALESCE(pp.display_target_quantity, pp.target_quantity) as display_target,
+//     pp.dimensions
+//   FROM product_production pp
+//   JOIN products prod ON pp.product_id = prod.id
+//   WHERE pp.project_id = $1
+//   ORDER BY prod.type, prod.name
+// `, [id]);
 
     // const productionResult = await pool.query(`
     //   SELECT 

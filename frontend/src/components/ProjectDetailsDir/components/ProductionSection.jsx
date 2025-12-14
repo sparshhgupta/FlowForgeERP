@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, Plus, Trash2, Edit, Eye, Ruler } from 'lucide-react';
+import { Package, Plus, Trash2, Edit, Eye, Ruler, Users } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAuth } from '../../../context/AuthContext';
 import axios from 'axios';
@@ -12,7 +12,8 @@ const ProductionSection = ({
   onAddProduct, 
   fetchProjectDetails,
   onEditDisplay,
-  onEditDimensions
+  onEditDimensions,
+  onWorkersClick  // New prop
 }) => {
   const [editingProduction, setEditingProduction] = useState(null);
   const { getAuthHeader, API_URL, user } = useAuth();
@@ -133,6 +134,7 @@ const ProductionSection = ({
                 onRemove={() => handleRemoveProduct(item.id)}
                 onDisplayClick={() => onEditDisplay(item)}
                 onDimensionsClick={() => onEditDimensions(item)}
+                onWorkersClick={() => onWorkersClick(item)}  // New prop
                 onEditValueChange={setEditValue}
               />
             ))}
@@ -180,6 +182,7 @@ const ProductionItem = ({
   onRemove, 
   onDisplayClick,
   onDimensionsClick,
+  onWorkersClick,  // New prop
   onEditValueChange
 }) => {
   // Parse dimensions
@@ -328,8 +331,16 @@ const ProductionItem = ({
                 </span>
               )}
             </div>
-            <div className="text-slate-400 text-xs">
-              Workers assigned: {item.assigned_workers || 0}
+            <div 
+              className={`text-xs ${item.assigned_workers_count > 0 ? 'cursor-pointer hover:text-blue-300' : 'text-slate-400'} transition-colors`}
+              onClick={item.assigned_workers_count > 0 ? () => onWorkersClick(item) : undefined}
+              title={item.assigned_workers_count > 0 ? "Click to view/assign workers" : "No workers assigned"}
+            >
+              <div className="flex items-center gap-1">
+                <Users size={12} className={item.assigned_workers_count > 0 ? "text-blue-400" : "text-slate-500"} />
+                Workers assigned: {item.assigned_workers_count || 0}
+                {item.assigned_workers_count > 0 && ' (click to view)'}
+              </div>
             </div>
           </div>
           {canEdit && (
@@ -359,6 +370,13 @@ const ProductionItem = ({
                   </button>
                 </>
               )}
+              <button
+                onClick={() => onWorkersClick(item)}
+                className="p-1 hover:bg-blue-600 hover:bg-opacity-20 rounded transition-colors"
+                title="Assign workers to this product"
+              >
+                <Users className="text-blue-400" size={16} />
+              </button>
             </div>
           )}
         </div>

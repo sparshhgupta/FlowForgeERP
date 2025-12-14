@@ -96,11 +96,24 @@ router.get('/today/details', authenticateToken, async (req, res) => {
             )
           ) FILTER (WHERE wa.id IS NOT NULL), 
           '[]'
-        ) as assignments
+        ) as assignments,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'product_id', pp.product_id,
+              'product_name', prod.name,
+              'production_id', pp.id
+            )
+          ) FILTER (WHERE wpa.id IS NOT NULL), 
+          '[]'
+        ) as product_assignments
       FROM workers w
       LEFT JOIN attendance a ON w.id = a.worker_id AND a.date = CURRENT_DATE
       LEFT JOIN worker_assignments wa ON w.id = wa.worker_id AND wa.date = CURRENT_DATE
       LEFT JOIN projects p ON wa.project_id = p.id
+      LEFT JOIN worker_product_assignments wpa ON w.id = wpa.worker_id AND wpa.date = CURRENT_DATE
+      LEFT JOIN product_production pp ON wpa.product_production_id = pp.id
+      LEFT JOIN products prod ON pp.product_id = prod.id
       GROUP BY w.id, a.id, a.status, a.check_in_time, a.check_out_time, a.notes
       ORDER BY w.name
     `);
@@ -120,11 +133,26 @@ router.get('/available', authenticateToken, async (req, res) => {
         w.*,
         a.status,
         a.check_in_time,
-        COUNT(wa.id) as current_assignments
+        COUNT(DISTINCT wa.id) as current_project_assignments,
+        COUNT(DISTINCT wpa.id) as current_product_assignments,
+        (
+          SELECT json_agg(DISTINCT p.name)
+          FROM worker_assignments wa2
+          JOIN projects p ON wa2.project_id = p.id
+          WHERE wa2.worker_id = w.id AND wa2.date = CURRENT_DATE
+        ) as assigned_project_names,
+        (
+          SELECT json_agg(DISTINCT prod.name)
+          FROM worker_product_assignments wpa2
+          JOIN product_production pp ON wpa2.product_production_id = pp.id
+          JOIN products prod ON pp.product_id = prod.id
+          WHERE wpa2.worker_id = w.id AND wpa2.date = CURRENT_DATE
+        ) as assigned_product_names
       FROM workers w
       LEFT JOIN attendance a ON w.id = a.worker_id AND a.date = CURRENT_DATE
       LEFT JOIN worker_assignments wa ON w.id = wa.worker_id AND wa.date = CURRENT_DATE
-      WHERE a.status = 'present' OR a.status = 'half-day'
+      LEFT JOIN worker_product_assignments wpa ON w.id = wpa.worker_id AND wpa.date = CURRENT_DATE
+      WHERE (a.status = 'present' OR a.status = 'half-day')
       GROUP BY w.id, a.status, a.check_in_time
       ORDER BY w.name
     `);
@@ -324,7 +352,7 @@ router.get('/assignments/today', authenticateToken, async (req, res) => {
   }
 });
 
-// Get assignments for a specific project
+// Get assignments for a specific project (updated to include product assignments)
 router.get('/assignments/project/:projectId', authenticateToken, async (req, res) => {
   const { projectId } = req.params;
   const { date } = req.query;
@@ -340,7 +368,20 @@ router.get('/assignments/project/:projectId', authenticateToken, async (req, res
         a.check_in_time,
         a.check_out_time,
         m.name as machine_name,
-        m.type as machine_type
+        m.type as machine_type,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'product_id', pp.product_id,
+              'product_name', prod.name,
+              'product_assignment_id', wpa.id
+            )
+          )
+          FROM worker_product_assignments wpa
+          JOIN product_production pp ON wpa.product_production_id = pp.id AND pp.project_id = $1
+          JOIN products prod ON pp.product_id = prod.id
+          WHERE wpa.worker_id = w.id AND wpa.date = $2
+        ) as product_assignments
       FROM worker_assignments wa
       JOIN workers w ON wa.worker_id = w.id
       LEFT JOIN attendance a ON w.id = a.worker_id AND a.date = wa.date
